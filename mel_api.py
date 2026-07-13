@@ -57,7 +57,7 @@ def get_article(*path):
 		author_name : string - author's name or None
 		author_url : string - author's url
 		comment count : int (with comment replies)
-		content : post content
+		content : article content
 		comments : dict
 			author_name : string - author's name
 			text : comment text
