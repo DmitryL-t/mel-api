@@ -197,7 +197,7 @@ def get_article(*path):
 	}
 	return article_
 
-# Returns articles from an author page. Doesn'
+# Returns articles from an author page. Doesn't return all articles.
 def get_author(name):
 	"""Returns information about some author
 
