@@ -83,7 +83,7 @@ def get_article(*path):
 
 	s = requests.get('https://mel.fm' + _path).text
 	soup = bs(s, features='html.parser')
-	if soup.find(class_='article i-control') == None:
+	if soup.select_one('.article.i-control') == None:
 		return None
 
 	title = soup.find(class_='publication-header__title').text
