@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup as bs
 import json as json_
-# Returns articles (posts) from the main page of the site mel.fm. Doesn't return articles that is only avaible by clicking "More articles" button.
+# Returns articles (articles) from the main page of the site mel.fm. Doesn't return articles that is only avaible by clicking "More articles" button.
 def main_page():
 	'''Returns articles from the main page of site
 
@@ -39,6 +39,67 @@ def main_page():
 			'comment_count': comment_count
 		})
 	return articles
+
+# Loads articles from main page (with additional articles)
+class MainPage:
+	def __init__(self):
+		s = requests.get('https://mel.fm').text
+		soup = bs(s, features='html.parser')
+		blocks = soup.find(class_='main-page__list')
+		articles = []
+		for i in blocks.find_all(class_='tile-card'):
+			title = i.find(class_=['card-double__title', 'card-blog-double__title', 'card-half__title', 'card-blog-half__title', 'card-without-image__title']).text
+			#print(title)
+			url = i.find(class_='tile-card__url')['href']
+			#print(url)
+			publication_time = i.find(class_='tile-card__date').text
+			#print(publication_time)
+			comment_span = i.find('span')
+			if comment_span:
+				comment_count = int(comment_span.text)
+			else:
+				comment_count = 0
+			#print(comment_count)
+			articles.append({
+				'title': title,
+				'url': url,
+				'publication_time': publication_time,
+				'comment_count': comment_count
+			})
+		self.articles = self.source_code = articles
+		link = None
+		script_list = soup.find_all('script')
+		for script in script_list:
+			s_ = script.text.strip()
+			if 'window.__APOLLO_STATE__={"' in s_:
+				text = s_[s_.find('window.__APOLLO_STATE__={"') + 24:]
+				if text[-1] == ';':
+					text = text[:-1]
+				json = json_.loads(text)
+				link = json['$ROOT_QUERY.frontpageClient({})']['link']
+		self.link = link
+	def load(self):
+		print('Fetching more articles with link', self.link)
+		data = "{\"operationName\":\"FrontpageClientQuery\",\"variables\":{\"link\":\"" + self.link + "\"},\"query\":\"query FrontpageClientQuery($link: String) {\\n  frontpageClient(link: $link) {\\n    publications {\\n      id\\n      publicationTime\\n      commentsCount\\n      title\\n      subtitle\\n      url\\n      coverImageUrl\\n      socialImageUrl\\n      type\\n      isEnabled\\n      isExternalPublication\\n      mainSection {\\n        sectionId\\n        sectionName\\n        sectionAddress\\n        __typename\\n      }\\n      mainPageTiles {\\n        type\\n        imageUrl\\n        __typename\\n      }\\n      isCommercialPublication\\n      __typename\\n    }\\n    link\\n    __typename\\n  }\\n}\\n\"}"
+		s = requests.post('https://mel.fm/graphql?op=FrontpageClientQuery', headers={'content-type': 'application/json'}, data=data).text
+		json = json_.loads(s)		
+		publications = json['data']['frontpageClient']['publications']
+		articles = []
+		for i in publications:
+			article = {
+				'publication_time': i['publicationTime'],
+				'comment_count': i['commentsCount'],
+				'title': i['title'],
+				'title1': i['subtitle'],
+				'url': i['url'],
+				'is_commercial': i['isCommercialPublication']
+			}
+			articles.append(article)
+		link = json['data']['frontpageClient']['link']
+		print('New link is', link)
+		self.link = link
+		self.articles += articles
+		return articles
 
 
 # This method gets title, subtitle, author's name, content, and comments of an article.
@@ -265,6 +326,82 @@ def get_author(name):
 		'articles': articles
 	}
 
+class Author:
+	def __init__(self, name):
+		self.name = name
+		path = '/author/' + name
+		full_path = 'https://mel.fm' + path
+		s = requests.get(full_path).text
+		soup = bs(s, features='html.parser')
+		if soup.find(class_='b-author') == None:
+			return None
+		self.title = soup.find(class_='b-pb-author__name').text
+		#print(self.title)
+		self.title1 = soup.find(class_='b-pb-author__quote').text
+		#print(self.title1)
+		json = None
+		link_elem = soup.select('.i-control.b-author')[0]
+		json = json_.loads(link_elem['data-params'])
+		link = json['link']
+		self.link = link
+
+		articles = []
+		for i in soup.find_all(class_='b-article-feed__article-preview'):
+			json = json_.loads(i.find(class_='i-control')['data-params'])
+			publication_time = json['data']['publicationTime']
+			#print(publication_time)
+
+			# date_ = i.find(class_='b-article-preview__publication-date').text
+			# time_ = i.find(class_='b-article-preview__publication-time').text
+			# Doesn't work!
+			url_ = i.find(class_='b-article-preview__read-next')
+			url = url_['href']
+			#print(url)
+			title = i.find(class_='b-article-preview__title').text
+			#print(title)
+			title1 = i.find(class_='b-article-preview__subtitle').text
+			#print(title1)
+			comment_count_ = i.find(class_='b-article-preview__comments-count')
+			if comment_count_:
+				comment_count = int(comment_count_.text)
+			else:
+				comment_count = 0
+			#print(comment_count)
+			articles.append({
+				'publication_time': publication_time,
+				'url': url,
+				'title': title,
+				'title1': title1,
+				'comment_count': comment_count
+			})
+		self.articles = self.source_code = articles
+		self.is_all = False
+	def load(self):
+		if self.is_all:
+			return []
+		#print('Fetching articles with link', self.link)
+		s = requests.get(f'https://mel.fm/api' + self.link).text
+		json = json_.loads(s)
+		publications = json['publications']
+		articles = []
+		for i in publications:
+			article = {
+				'publicationTime': i['publicationTime'],
+				'title': i['title'],
+				'title1': i['subtitle'],
+				'url': i['linkToArticle'],
+				'comment_count': i['commentsCount'],
+				'view_count': int(i['viewsCount'].replace('\xa0', '')) if i['viewsCount'] != None else None
+			}
+			articles.append(article)
+		if 'link' in json:
+			self.link = json['link']
+		else:
+			self.link = None
+			self.is_all = True
+		#print('New link is', self.link)
+		return articles
+# Returns articles from a blog page. Doesn't return all articles.
 def get_blog(name):
 	"""Returns information about some blog
 
@@ -329,3 +466,81 @@ def get_blog(name):
 		'title1': blog_title1,
 		'articles': articles
 	}
+
+class Blog:
+	def __init__(self, name):
+		self.name = name
+		path = '/blog/' + name
+		full_path = 'https://mel.fm' + path
+		s = requests.get(full_path).text
+		soup = bs(s, features='html.parser')
+		if soup.find(class_='b-blog') == None:
+			return None
+		self.title = soup.find(class_='b-pb-author__name').text
+		#print(self.title)
+		blog_title1_ = soup.find(class_='b-pb-author__quote')
+		if blog_title1_:
+			self.title1 = title1_.text
+		else:
+			self.title1 = None
+		json = None
+		link_elem = soup.select('.i-control.b-blog.b-blog_pablo_mel')[0]
+		json = json_.loads(link_elem['data-params'])
+		link = json['link']
+		self.link = link
+		articles = []
+		for i in soup.find_all(class_='b-article-feed__article-preview'):
+			json = json_.loads(i.find(class_='i-control')['data-params'])
+			publication_time = json['data']['publicationTime']
+			#print(publication_time)
+
+			# date_ = i.find(class_='b-article-preview__publication-date').text
+			# time_ = i.find(class_='b-article-preview__publication-time').text
+			# Doesn't work!
+			url_ = i.find(class_='b-article-preview__read-next')
+			url = url_['href']
+			#print(url)
+			title = i.find(class_='b-article-preview__title').text
+			#print(title)
+			title1 = i.find(class_='b-article-preview__subtitle').text
+			#print(title1)
+			comment_count_ = i.find(class_='b-article-preview__comments-count')
+			if comment_count_:
+				comment_count = int(comment_count_.text)
+			else:
+				comment_count = 0
+			#print(comment_count)
+			articles.append({
+				'publication_time': publication_time,
+				'url': url,
+				'title': title,
+				'title1': title1,
+				'comment_count': comment_count
+			})
+		self.articles = self.source_code = articles
+		self.is_all = False
+	def load(self):
+		if self.is_all:
+			return []
+		#print('Fetching articles with link', self.link)
+		s = requests.get(f'https://mel.fm/api' + self.link).text
+		json = json_.loads(s)
+		publications = json['publications']
+		articles = []
+		for i in publications:
+			article = {
+				'publicationTime': i['publicationTime'],
+				'title': i['title'],
+				'title1': i['subtitle'],
+				'url': i['linkToArticle'],
+				'comment_count': i['commentsCount'],
+				'view_count': int(i['viewsCount'].replace('\xa0', '')) if i['viewsCount'] != None else None
+			}
+			articles.append(article)
+		if 'link' in json:
+			self.link = json['link']
+		else:
+			self.link = None
+			self.is_all = True
+		#print('New link is', self.link)
+		return articles
