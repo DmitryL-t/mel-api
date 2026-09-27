@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup as bs
 import json as json_
-# Returns articles (articles) from the main page of the site mel.fm. Doesn't return articles that is only avaible by clicking "More articles" button.
+# Returns articles from the main page of the site mel.fm. Doesn't return articles that is only avaible by clicking "More articles" button.
 def main_page():
 	'''Returns articles from the main page of site
 
