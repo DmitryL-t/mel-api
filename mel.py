@@ -20,7 +20,7 @@ for i in articles:
 
 # Fetching articles from an author's page
 # it's an official Mel author
-blog = mel.get_author('nadezhda-tega')
+blog = mel.get_author('gramotnost-na-mele')
 print('Blog title:', blog['title'])
 print('Blog subtitle:', blog['title1'])
 print()
@@ -32,9 +32,8 @@ for i in articles:
 	print(i['comment_count'])
 	print()
 
-print(mel.get_blog('no-blog')) # None
-print(mel.get_author('no-author')) # None
-print()
+# mel.get_blog('no-blog')) # None
+# mel.get_author('no-author')) # None
 
 # Fetching articles from the main page
 articles = mel.main_page()
@@ -48,8 +47,8 @@ for i in articles:
 # https://mel.fm/author/gramotnost-na-mele
 article = mel.get_article('ucheba', 'yege', 6893721)
 print('Article')
-print(article['title'])
-print(article['title1'])
+print('Article title:', article['title'])
+print('Article subtitle:', article['title1'])
 # The content is stored at articles['content']
 
 # Printing comments
@@ -62,3 +61,47 @@ for i in article['comments']:
 		print('--', j['text'])
 	print()
 	# The site has only 1-level answers
+
+# Classes for fetching articles, that are only available by clicking "More articles" button or by scrolling
+main_page = mel.MainPage()
+
+print('Main page articles:')
+for article in main_page.source_code:
+	print(article['title'])
+
+for i in range(2):
+	articles = main_page.load()
+	if len(articles) == 0:
+		break
+	for article in articles:
+		print('>', article['title'])
+	
+blog = mel.Blog('myel-myel')
+print('Blog title:', blog.title)
+print('Blog subtitle:', blog.title1)
+
+print('Blog articles:')
+for article in blog.source_code:
+	print(article['title'])
+
+for i in range(2):
+	articles = blog.load()
+	if len(articles) == 0:
+		break
+	for article in articles:
+		print('>', article['title'])
+	
+author = mel.Author('gramotnost-na-mele')
+print('Author title:', author.title)
+print('Author subtitle:', author.title1)
+
+print('Author articles:')
+for article in author.source_code:
+	print(article['title'])
+
+for i in range(2):
+	articles = author.load()
+	if len(articles) == 0:
+		break
+	for article in articles:
+		print('>', article['title'])
