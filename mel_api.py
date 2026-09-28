@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup as bs
 import json as json_
-# Returns articles from the main page of the site mel.fm. Doesn't return articles that is only avaible by clicking "More articles" button.
+# Returns articles (articles) from the main page of the site mel.fm. Doesn't return articles that is only available by clicking "More articles" button.
 def main_page():
 	'''Returns articles from the main page of site
 
@@ -100,7 +100,6 @@ class MainPage:
 		self.link = link
 		self.articles += articles
 		return articles
-
 
 # This method gets title, subtitle, author's name, content, and comments of an article.
 def get_article(*path):
@@ -258,7 +257,7 @@ def get_article(*path):
 	}
 	return article_
 
-# Returns articles from an author page. Doesn't return all articles.
+# Returns articles from an author page. Doesn't return articles that are only available by infinite scrolling.
 def get_author(name):
 	"""Returns information about some author
 
@@ -326,6 +325,7 @@ def get_author(name):
 		'articles': articles
 	}
 
+# Loads articles from an author page (with additional articles)
 class Author:
 	def __init__(self, name):
 		self.name = name
@@ -401,7 +401,8 @@ class Author:
 			self.is_all = True
 		#print('New link is', self.link)
 		return articles
-# Returns articles from a blog page. Doesn't return all articles.
+
+# Returns articles from a blog page. Doesn't return articles that are only available by infinite scrolling.
 def get_blog(name):
 	"""Returns information about some blog
 
@@ -467,6 +468,7 @@ def get_blog(name):
 		'articles': articles
 	}
 
+# Loads articles from a blog page (with additional articles)
 class Blog:
 	def __init__(self, name):
 		self.name = name
