@@ -650,3 +650,207 @@ class Blog:
 			self.is_all = True
 		#print('New link is', self.link)
 		return articles
+
+# Returns articles (articles) from the search page. Doesn't return articles that is only available by clicking "More articles" button.
+def search(query, sort='relevance', section=None):
+	'''Return search results
+	
+	Arguments:
+		query : str
+		sort : str
+			type of sorting
+			Values = 'relevance', 'publicationTimeAsc', 'publicationTime'
+			Default value is 'relevance'
+		section : None or int(1-15)
+			Values = None (all sections), int (one section)
+
+	Return value:
+		list of articles : dictionaries with keys:
+			- url : str
+				article url
+			- tag : str
+				article category
+			- title : str
+			- title1 : str
+				sutitle of article
+			- comment_count : int
+				comment count (including comment replies)
+
+	'''
+	if section == None:
+		params = {
+			'query': query,
+			'sort': sort
+		}
+	else:
+		params = {
+			'query': query,
+			'sort': sort,
+			'sectionId': section
+		}
+	s = requests.get('https://mel.fm/search', params=params).text
+	soup = bs(s, features='html.parser')
+	search_content = soup.find(class_='search__content')
+	# count = int(search_content.find(class_='search__publications-count').find('span').text)
+	search_results = search_content.find_all('a')
+	articles = []
+	for i in search_results:
+		url = i['href'] # path (/vopros--otvet/...)
+		# print(url)
+		tag = i.find(class_='tag').text
+		# print(tag)
+		title = i.find(class_='publication-card__title').text
+		# print(title)
+		title1_ = i.find(class_='publication-card__subtitle')
+		if title1_ != None:
+			title1 = title1_.text
+		else:
+			title1 = None
+		# print(title1)
+		comment_count_ = i.find(class_='publication-card__comments')
+		if comment_count_:
+			comment_count = int([j for j in comment_count_.children][1].text)
+		else:
+			comment_count = 0
+		# print(comment_count)
+		article = {
+			'url': url,
+			'tag': tag,
+			'title': title,
+			'title1': title1,
+			'comment_count': comment_count
+		}
+		articles.append(article)
+	return articles
+
+# Loads articles from the search page (with additional articles)
+class Search:
+	'''
+	__init__ arguments:
+		query : str
+		sort : str
+			Values = 'relevance', 'publicationTimeAsc', 'publicationTime'
+			Default value is 'relevance'
+		section : None | int(1-15)
+			Values = None (all sections), int (one section)
+	Properties:
+		source_code : list of articles
+			articles at source code
+		articles : list of articles
+			articles at source code and fetched articles
+		is_all : bool
+			flag of end
+	articles : list of dictionaries with keys:
+		- url : str
+			article url
+		- tag : str
+			article category
+		- title : str
+		- title1 : str
+			subtitle of article
+		- comment_count : int
+			comment count (including comment replies)
+	Methods:
+		load():
+		Arguments: none
+		Return value: list of dictionaries with keys: 
+			- url : str
+				article url
+			- tag : str
+				article category
+			- title : str
+			- title1 : str
+				subtitle of article
+			- comment_count : int
+				comment count (including comment replies)
+	'''
+	def __init__(self, query, sort='relevance', section=None):
+		if section == None:
+			params = {
+				'query': query,
+				'sort': sort
+			}
+		else:
+			params = {
+				'query': query,
+				'sort': sort,
+				'sectionId': section
+			}
+		s = requests.get('https://mel.fm/search', params=params).text
+		file = open('__mel_html__.txt', 'w', encoding='utf-8')
+		file.write(s)
+		file.close()
+		self.query = query
+		self.sort = sort
+		self.section = section
+		soup = bs(s, features='html.parser')
+		search_content = soup.find(class_='search__content')
+		result_count = int(search_content.find(class_='search__publications-count').find('span').text)
+		# print(result_count)
+		self.result_count = result_count
+		search_results = search_content.find_all('a')
+		articles = []
+		for i in search_results:
+			url = i['href'] # path (/vopros--otvet/...)
+			# print(url)
+			tag = i.find(class_='tag').text
+			# print(tag)
+			title = i.find(class_='publication-card__title').text
+			# print(title)
+			title1_ = i.find(class_='publication-card__subtitle')
+			if title1_ != None:
+				title1 = title1_.text
+			else:
+				title1 = None
+			# print(title1)
+			comment_count_ = i.find(class_='publication-card__comments')
+			if comment_count_:
+				comment_count = int([j for j in comment_count_.children][1].text)
+			else:
+				comment_count = 0
+			# print(comment_count)
+			article = {
+				'url': url,
+				'tag': tag,
+				'title': title,
+				'title1': title1,
+				'comment_count': comment_count
+			}
+			articles.append(article)
+		self._x = 10
+		self.articles = self.source_code = articles
+		self.is_all = False
+	def load(self):
+		url = 'https://mel.fm/graphql?op=ClientSearchIndex'
+		body = {
+			"operationName": "ClientSearchIndex",
+			"variables": {
+				"params": {
+					"query": self.query,
+					"offset": self._x,
+					"sortBy": self.sort
+				}
+			},
+			"query": "query ClientSearchIndex($params: ClientSearchInput!) {\n  clientSearchIndex(params: $params) {\n    adSpace {\n      code\n      __typename\n    }\n    sections {\n      id\n      name\n      address\n      __typename\n    }\n    results {\n      query\n      isBadRequest\n      isNextPage\n      next {\n        query\n        type\n        limit\n        offset\n        isReturnTotalCount\n        filter {\n          post {\n            isFeatured\n            __typename\n          }\n          publication {\n            sectionId\n            __typename\n          }\n          __typename\n        }\n        return {\n          post\n          publication\n          __typename\n        }\n        sort\n        __typename\n      }\n      publications {\n        id\n        title\n        commentsCount\n        mainSection {\n          sectionId\n          sectionName\n          sectionAddress\n          __typename\n        }\n        isExternalPublication\n        subtitle\n        sectionUrl\n        pageUrl\n        commentsUrl\n        mobileImageUrl\n        isCommentsEnabled\n        __typename\n      }\n      count\n      __typename\n    }\n    __typename\n  }\n}\n"
+		}
+		if self.section != None:
+			body['variables']['params']['filterBySectionId'] = self.section
+		s = requests.post(url, headers={
+			'content-type': 'application/json'
+		}, json=body).text
+		json = json_.loads(s)
+		results = json['data']['clientSearchIndex']['results']
+		publications = results['publications']
+		articles = []
+		for i in publications:
+			article = {
+				'url': i['pageUrl'],
+				'tag': i['mainSection']['sectionName'],
+				'title': i['title'],
+				'title1': i['subtitle'],
+				'comment_count': i['commentsCount']
+			}
+			articles.append(article)
+		self.articles += articles
+		self._x += 10
+		return articles
