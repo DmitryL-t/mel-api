@@ -1,8 +1,8 @@
 # mel-api
 API for mel.fm site
-## Methods
+## Objects
 ### main_page()
-Returns all articles from the source code of the main page.
+Returns articles from the source code of the main page.
 
 Return object is a list of dictionaries with keys 'title', 'url', 'publication_time', and 'comment_count'.
 ### get_article(*path)
@@ -11,6 +11,8 @@ Returns information about an article with that path or None.
 Path can be an url, a path (/...), or a *path list* (`get_article('blog', 'title', 123)` gets article with path '/blog/title/123')
 
 Return object is a dictionary with keys 'url', 'title', 'title1' (subtitle), 'author_name', 'author_url', 'comment_count', 'content' and 'comments'.
+
+Comments are dictionaries with keys 'author_name', 'text', and 'replies'. Replies are dictionaries with keys 'author_name' and 'text'.
 ### get_author(name), get_blog(name)
 Return information and articles from the source code of author or blog page or None.
 
@@ -36,7 +38,7 @@ articles = author.source_code
 # blog
 articles = blog.source_code
 ```
-3. If you need more articles, use `load` method:
+3. To get more articles, use `load` method:
 ```
 articles = main_page.load()
 articles = author.load()
@@ -46,4 +48,15 @@ articles = blog.load()
 
 'articles' property is a list of all articles (from source code and fetched)
 
-'is_all' property is a boolean, that shows, are there more articles at the page
+'is_all' property is a boolean, that shows, is it the end of articles
+
+### search(query, sort='revelance', section=None)
+This method returns search results from the search page. `sort` parameter can be 'revelance', 'publicationTimeAsc', and 'publicationTime'.
+`section` parameter can be `None` or integer from 1 to 15. If it is None, the site searches articles with all categories, if it is integer, site searches only articles with one category.
+
+Return value is a list of dictionaries with keys 'url', 'tag' (category), 'title', 'title1', and 'comment_count'.
+
+### Search(query, sort='revelance', section=None)
+This class has `source_code` property, that contains articles from the source code of page. Loading more articles is possible by using `load()` method. They will be added to `articles` property of object.
+
+Articles have keys 'url', 'tag, 'title', 'title1', and 'comment_count'.
